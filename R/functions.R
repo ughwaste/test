@@ -1,5 +1,44 @@
 ### Helper functions
 
+
+#############
+#stolen from Luke Sonnet's Github: https://rdrr.io/github/lukesonnet/KRLS/src/R/kernels.R
+#if want to reduce the space this takes up we can delete all the whichkernel stuff since
+#we use gauss only
+newKernel <- function(X, newData, whichkernel = "gaussian", b = NULL) {
+    
+    # Get values of oldData to scale newData
+    Xmeans <- colMeans(X)
+    Xsd <- apply(X, 2, sd)
+    X <- scale(X, center = Xmeans, scale = Xsd)
+    
+    # scale new data by means and sd of old data
+    newData <- scale(newData, center = Xmeans, scale = Xsd)      
+    
+    # predict based on new kernel matrix
+    nn <- nrow(newData)
+    
+    ## Compute kernel matrix
+    K <- NULL
+    if(whichkernel=="gaussian"){ 
+        if(is.null(b)) {b <- 2 * ncol(X)}
+        newK <- new_gauss_kern(newData, X, b)
+    } else {
+        if(whichkernel=="linear"){ K <- tcrossprod(rbind(newData, X)) }
+        if(whichkernel=="poly2"){ K <- (tcrossprod(rbind(newData, X))+1)^2 }
+        if(whichkernel=="poly3"){ K <- (tcrossprod(rbind(newData, X))+1)^3 }
+        if(whichkernel=="poly4"){ K <- (tcrossprod(rbind(newData, X))+1)^4 }
+        newK <- matrix(K[1:nn, (nn+1):(nn+nrow(X))],
+                       nrow=nrow(newData),
+                       byrow=FALSE)
+    }
+    if(is.null(newK)){ stop("No valid Kernel specified") }
+    
+    return(newK)
+}
+#############
+
+
 ### Build kernel, possibly non-square
 makeK = function(allx, useasbases=NULL, b=NULL){
   N=nrow(allx)
@@ -7,7 +46,8 @@ makeK = function(allx, useasbases=NULL, b=NULL){
   # If no "useasbasis" given, assume all observations are to be used. 
   if (is.null(b)){ b=ncol(allx) }
   bases = allx[useasbases==1, ]
-  K=KRLS2::newKernel(X = bases , newData = allx , b = b)
+  #getting rid of dependencies by just stealing this directly 
+  K=newKernel(X = bases , newData = allx , b = b)
 }
 
 ### Get bias bound, which will be the distance
