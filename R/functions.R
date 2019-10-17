@@ -82,14 +82,23 @@ getw = function(target, sampled, allrows, ebal.tol=1e-6,...){
   return(R)
 } # end of getw.
 
+# Oct 16 2019 Update on reasoning of names; two forms of input to kpop and 
+#a third language change to the whole code
+# 1. pass in "sampled" and a logical "sampledinpop" that when true indicates 
+#that the sampled pop should be re-incorperated into the target population
+# 2. pass in "treatment" only which specifies the target population;
+#zeros in this matrix are inferred to be the "sampled" or observed popultion
+# 3. throughout the code itself use "target" to refer to the target populationtion (or the treated)
+#use "observed" to refer to the sampled population (or the controls)
+#note that this just means that "sampled"  and "treatment" only appear as an inputs to the kpop function
+#and "observed"  and "target" are used everywhere else internally in the code (biasbound, getw etc)
+
 
 # 10 Oct 2019 -- re-reasoning about how to manage sample vs. target
 # Please note this may not match what is implemented below!!!
 # 1. Only specify "sampled" and a logical flag "sampleinpop" that indicates
 # your intended target population should re-include units who happened to also be sampled.  Throw an error is sampleinpop is not specified (i.e. no default).
 # There will no longer be a "target" vector at all.
-
-
 
 # OLD stuff (pre 10 Oct 2019)
 # Added "sampled", in addition to "target".
@@ -105,18 +114,38 @@ getw = function(target, sampled, allrows, ebal.tol=1e-6,...){
 
 
 # The main event: Actual kpop function!
-kpop = function(allx, useasbases=NULL, b=NULL, target=NULL, sampled=NULL, 
+kpop = function(allx, useasbases=NULL, b=NULL, 
+                sampled=NULL, sampledinpop=NULL,
+                treatment=NULL,
                 ebal.tol=1e-6, numdims=NULL, 
                 minnumdims=NULL, maxnumdims=NULL, 
                 incrementby=1){
- 
-  N=nrow(allx)
-  if (is.null(target)){target=rep(1,N)}
+    
+   #need to throw error if try to pass both sample and target
+   if(!is.null(sampled) & !is.null(treatment)) {
+        stop("Error: sampled and treatment arguments can not be specified simultaneously")
+   }
+    
   
-  if(is.null(sample)){sample=(target!=1)}
+  #replacing this with new language and inputs
+  #if (is.null(target)){target=rep(1,N)}
+  #if(is.null(sample)){sample=(target!=1)}
+  N=nrow(allx)
+  if(!is.null(sampled) & sampledinpop==FALSE) {
+      observed = sampled
+      target = 1-sampled
+  } else if(!is.null(sampled)) {
+      observed = sampled
+      target = rep(1,N)
+  } else{ #note this will be a problem if both args are null, do we need an error for that?
+      observed = 1-treatment
+      target = treatment
+  }
   
   # If we don't specify which observations to use as bases, 
   # use just the "sample" set, i.e. the non-targets. 
+  # XXXXX do we want an error for sampled and treament are null? 
+  # XXXXX do we want an warning for treatment + sampledinpop being redundant?
   if (is.null(useasbases)){
     useasbases=as.numeric(sampled==1)
     # useasbases=rep(1,N)  #or if you want all obs as bases
